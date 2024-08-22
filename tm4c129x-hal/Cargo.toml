@@ -25,9 +25,17 @@ version = "0.9.1"
 version = "0.2"
 default-features = false
 
-[dependencies.embedded-hal]
-version = "0.2"
+[dependencies.eh0]
+package = "embedded-hal"
+version = "0.2.2"
 features = ["unproven"]
+
+[dependencies.eh1]
+package = "embedded-hal"
+version = "1.0.0"
+
+[dependencies.embedded-io]
+version = "0.6.1"
 
 [dependencies.void]
 version = "1.0"

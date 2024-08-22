@@ -30,7 +30,8 @@ pub use tm4c_hal::{bb, delay, time};
 #[cfg(feature = "rt")]
 pub use crate::tm4c123x::interrupt;
 
-use embedded_hal as hal;
+use eh1 as hal;
+use eh0;
 
 use sealed::Sealed;
 mod sealed {
@@ -47,6 +48,6 @@ pub mod i2c;
 pub mod prelude;
 pub mod pwm;
 pub mod serial;
-pub mod spi;
+//pub mod spi;
 pub mod sysctl;
 pub mod timer;

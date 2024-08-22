@@ -1,24 +1,6 @@
 //! Common I2C code for TM4C123 and TM4C129
 
-/// I2C error
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum Error {
-    /// Bus Busy
-    BusBusy,
 
-    /// Arbitration loss
-    Arbitration,
-
-    /// Missing Data ACK
-    DataAck,
-
-    /// Missing Address ACK
-    AdrAck,
-
-    /// I2C Timeout
-    Timeout,
-}
 
 #[macro_export]
 /// Implements the traits for an I2C peripheral
@@ -69,27 +51,27 @@ macro_rules! i2c_busy_wait {
 
 
         if mcs.clkto().bit_is_set() {
-            return Err(Error::Timeout)
+            return Err(ErrorKind::Other)
         } else if mcs.arblst().bit_is_set() {
-            return Err(Error::Arbitration)
+            return Err(ErrorKind::Other)
         } else if mcs.error().bit_is_set() {
             if mcs.adrack().bit_is_set() {
-                return Err(Error::AdrAck);
+                return Err(ErrorKind::Other)
             } else { // if mcs.datack().bit_is_set() {
-                return Err(Error::DataAck);
+                return Err(ErrorKind::Other)
             }
         }
 
         $( loop {
             if mcs.clkto().bit_is_set() {
-                return Err(Error::Timeout)
+                return Err(ErrorKind::Other)
             } else if mcs.arblst().bit_is_set() {
-                return Err(Error::Arbitration)
+                return Err(ErrorKind::Other)
             } else if mcs.error().bit_is_set() {
                 if mcs.adrack().bit_is_set() {
-                    return Err(Error::AdrAck);
+                    return Err(ErrorKind::Other)
                 } else { // if mcs.datack().bit_is_set() {
-                    return Err(Error::DataAck);
+                    return Err(ErrorKind::Other)
                 }
             } else if mcs.$field().$op() {
                 break;
@@ -141,217 +123,129 @@ macro_rules! i2c_hal {
                 pub fn free(self) -> ($I2CX, (SCL, SDA)) {
                     (self.i2c, self.pins)
                 }
-            }
 
-            impl<PINS> Write for I2c<$I2CX, PINS> {
-                type Error = Error;
-
-                fn write(&mut self, addr: u8, bytes: &[u8]) -> Result<(), Error> {
-                    // Write Slave address and clear Receive bit
-                    self.i2c.msa.write(|w| unsafe {
-                        w.sa().bits(addr)
-                    });
-
-                    // Put first byte in data register
-                    self.i2c.mdr.write(|w| unsafe {
-                        w.data().bits(bytes[0])
-                    });
-
-                    let sz = bytes.len();
-
-                    i2c_busy_wait!(self.i2c, busbsy, bit_is_clear)?;
-
-                    // Send START + RUN
-                    // If single byte transfer, set STOP
-                    self.i2c.mcs.write(|w| {
-                        if sz == 1 {
-                            w.stop().set_bit();
-                        }
-                        w.start().set_bit()
-                            .run().set_bit()
-                    });
-
-                    for (i,byte) in (&bytes[1..]).iter().enumerate() {
-                        i2c_busy_wait!(self.i2c)?;
-
-                        // Put next byte in data register
-                        self.i2c.mdr.write(|w| unsafe {
-                            w.data().bits(*byte)
-                        });
-
-                        // Send RUN command (Burst continue)
-                        // Set STOP on last byte
-                        self.i2c.mcs.write(|w| {
-                            if (i+1) == (sz-1) {
-                                w.stop().set_bit();
+                fn transaction(
+                    &mut self,
+                    addr: u8,
+                    operations: &mut [Operation],
+                ) -> Result<(), ErrorKind>{
+            
+                    for(idx, operations) in operations.iter_mut().enumerate(){
+                        match operations{
+                            Operation::Write(bytes) => {
+                                // Write Slave address and clear Receive bit
+                                self.i2c.msa.write(|w| unsafe {
+                                w.sa().bits(addr)
+                                });
+            
+                                // Put first byte in data register
+                                self.i2c.mdr.write(|w| unsafe {
+                                    w.data().bits(bytes[0])
+                                });
+                                
+                                let sz = bytes.len();
+            
+                                i2c_busy_wait!(self.i2c, busbsy, bit_is_clear)?;
+            
+                                // Send START + RUN
+                                // If single byte transfer, set STOP
+                                self.i2c.mcs.write(|w| {
+                                    if sz == 1 {
+                                        w.stop().set_bit();
+                                    }
+                                    w.start().set_bit()
+                                        .run().set_bit()
+                                });
+            
+                                for (i,byte) in (&bytes[1..]).iter().enumerate() {
+                                    i2c_busy_wait!(self.i2c)?;
+            
+                                    // Put next byte in data register
+                                    self.i2c.mdr.write(|w| unsafe {
+                                        w.data().bits(*byte)
+                                    });
+            
+                                    // Send RUN command (Burst continue)
+                                    // Set STOP on last byte
+                                    self.i2c.mcs.write(|w| {
+                                        if (i+1) == (sz-1) {
+                                            w.stop().set_bit();
+                                        }
+                                        w.run().set_bit()
+                                    });
+                                }
+            
+                                i2c_busy_wait!(self.i2c)?;
+                
                             }
-                            w.run().set_bit()
-                        });
+                            Operation::Read(buffer) => {
+                                    // Write Slave address and set Receive bit
+                                    self.i2c.msa.write(|w| unsafe {
+                                    w.sa().bits(addr)
+                                        .rs().set_bit()
+                                });
+            
+                                i2c_busy_wait!(self.i2c, busbsy, bit_is_clear)?;
+            
+                                let recv_sz = buffer.len();
+            
+                                if recv_sz == 1 {
+                                    // Single receive
+                                    self.i2c.mcs.write(|w| {
+                                        w.run().set_bit()
+                                        .start().set_bit()
+                                        .stop().set_bit()
+                                    });
+            
+                                    i2c_busy_wait!(self.i2c)?;
+                                    buffer[0] = self.i2c.mdr.read().data().bits();
+                                }else{
+                                    self.i2c.mcs.write(|w| {
+                                        w.start().set_bit()
+                                        .run().set_bit()
+                                        .ack().set_bit()
+                                    });
+            
+                                    i2c_busy_wait!(self.i2c)?;
+                                    buffer[0] = self.i2c.mdr.read().data().bits();
+            
+                                    for byte in &mut buffer[1..recv_sz-1] {
+                                        self.i2c.mcs.write(|w| {
+                                            w.run().set_bit()
+                                            .ack().set_bit()
+                                        });
+                                        i2c_busy_wait!(self.i2c)?;
+                                        *byte = self.i2c.mdr.read().data().bits();
+                                    }
+            
+                                    self.i2c.mcs.write(|w| {
+                                        w.run().set_bit()
+                                        .stop().set_bit()
+                                    });
+            
+                                    i2c_busy_wait!(self.i2c)?;
+                                    buffer[recv_sz-1] = self.i2c.mdr.read().data().bits();
+                                }
+                        }                                                
+                        }
                     }
-
-                    i2c_busy_wait!(self.i2c)?;
-
-                    Ok(())
+                Ok(())
                 }
+            
+            }
+            
+
+            impl<SCL, SDA> ErrorType for I2c<$I2CX, (SCL, SDA)> {
+                type Error = ErrorKind;
             }
 
-            impl<PINS> Read for I2c<$I2CX, PINS> {
-                type Error = Error;
-
-                fn read(
+            impl<SCL, SDA> eh1::i2c::I2c for I2c<$I2CX, (SCL, SDA)>{
+                fn transaction(
                     &mut self,
-                    addr: u8,
-                    buffer: &mut [u8],
-                ) -> Result<(), Error> {
-
-                    // Write Slave address and set Receive bit
-                    self.i2c.msa.write(|w| unsafe {
-                        w.sa().bits(addr)
-                            .rs().set_bit()
-                    });
-
-                    i2c_busy_wait!(self.i2c, busbsy, bit_is_clear)?;
-
-                    let recv_sz = buffer.len();
-
-                    if recv_sz == 1 {
-                        // Single receive
-                        self.i2c.mcs.write(|w| {
-                            w.run().set_bit()
-                                .start().set_bit()
-                                .stop().set_bit()
-                        });
-
-                        i2c_busy_wait!(self.i2c)?;
-                        buffer[0] = self.i2c.mdr.read().data().bits();
-                    } else {
-                        self.i2c.mcs.write(|w| {
-                            w.start().set_bit()
-                                .run().set_bit()
-                                .ack().set_bit()
-                        });
-
-                        i2c_busy_wait!(self.i2c)?;
-                        buffer[0] = self.i2c.mdr.read().data().bits();
-
-                        for byte in &mut buffer[1..recv_sz-1] {
-                            self.i2c.mcs.write(|w| {
-                                w.run().set_bit()
-                                    .ack().set_bit()
-                            });
-                            i2c_busy_wait!(self.i2c)?;
-                            *byte = self.i2c.mdr.read().data().bits();
-                        }
-                        self.i2c.mcs.write(|w| {
-                            w.run().set_bit()
-                                .stop().set_bit()
-                        });
-
-                        i2c_busy_wait!(self.i2c)?;
-                        buffer[recv_sz-1] = self.i2c.mdr.read().data().bits();
-                    }
-
-                    Ok(())
-                }
-            }
-
-            impl<PINS> WriteRead for I2c<$I2CX, PINS> {
-                type Error = Error;
-
-                fn write_read(
-                    &mut self,
-                    addr: u8,
-                    bytes: &[u8],
-                    buffer: &mut [u8],
-                ) -> Result<(), Error> {
-
-                    let write_len = bytes.len();
-
-                    if buffer.len() == 0 {
-                       return self.write(addr, bytes);
-                    }
-
-                    if bytes.len() == 0 {
-                        return self.read(addr, buffer);
-                    }
-
-                    // Write Slave address and clear Receive bit
-                    self.i2c.msa.write(|w| unsafe {
-                        w.sa().bits(addr)
-                    });
-
-                    // send first byte
-                    self.i2c.mdr.write(|w| unsafe {
-                        w.data().bits(bytes[0])
-                    });
-
-                    i2c_busy_wait!(self.i2c, busbsy, bit_is_clear)?;
-                    self.i2c.mcs.write(|w| {
-                        w.start().set_bit()
-                            .run().set_bit()
-                    });
-
-                    i2c_busy_wait!(self.i2c)?;
-                    for byte in (&bytes[1..write_len]).iter() {
-                        self.i2c.mdr.write(|w| unsafe {
-                            w.data().bits(*byte)
-                        });
-
-                        self.i2c.mcs.write(|w| {
-                            w.run().set_bit()
-                        });
-
-                        i2c_busy_wait!(self.i2c)?;
-                    }
-
-                    // Write Slave address and set Receive bit
-                    self.i2c.msa.write(|w| unsafe {
-                        w.sa().bits(addr)
-                            .rs().set_bit()
-                    });
-
-                    let recv_sz = buffer.len();
-
-                    if recv_sz == 1 {
-                        // emit Repeated START and STOP for single receive
-                        self.i2c.mcs.write(|w| {
-                            w.run().set_bit()
-                                .start().set_bit()
-                                .stop().set_bit()
-                        });
-
-                        i2c_busy_wait!(self.i2c)?;
-                        buffer[0] = self.i2c.mdr.read().data().bits();
-                    } else {
-                        // emit Repeated START
-                        self.i2c.mcs.write(|w| {
-                            w.run().set_bit()
-                                .start().set_bit()
-                                .ack().set_bit()
-                        });
-
-                        i2c_busy_wait!(self.i2c)?;
-                        buffer[0] = self.i2c.mdr.read().data().bits();
-
-                        for byte in &mut buffer[1..recv_sz-1] {
-                            self.i2c.mcs.write(|w| {
-                                w.run().set_bit()
-                                    .ack().set_bit()
-                            });
-                            i2c_busy_wait!(self.i2c)?;
-                            *byte = self.i2c.mdr.read().data().bits();
-                        }
-
-                        self.i2c.mcs.write(|w| {
-                            w.run().set_bit()
-                                .stop().set_bit()
-                        });
-
-                        i2c_busy_wait!(self.i2c)?;
-                        buffer[recv_sz-1] = self.i2c.mdr.read().data().bits();
-                    }
-
-                    Ok(())
+                    address: u8,
+                    operations: &mut [Operation<'_>],
+                ) -> Result<(), Self::Error> {
+                    self.transaction(address, operations)
                 }
             }
         )+

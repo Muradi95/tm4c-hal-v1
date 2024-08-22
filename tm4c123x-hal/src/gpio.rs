@@ -36,7 +36,7 @@ pub use tm4c_hal::gpio::*;
 
 use crate::{
     bb,
-    hal::digital::{InputPin, OutputPin, StatefulOutputPin},
+    hal::digital::{InputPin, OutputPin, StatefulOutputPin, ErrorType, ErrorKind},
     sysctl,
 };
 use core::marker::PhantomData;

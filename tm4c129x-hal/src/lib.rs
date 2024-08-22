@@ -48,4 +48,5 @@ pub mod serial;
 // pub mod spi;
 pub mod sysctl;
 
-use embedded_hal as hal;
+use eh1 as hal;
+use eh0;

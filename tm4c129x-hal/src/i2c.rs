@@ -1,8 +1,10 @@
 //! Inter-Integrated Circuit (I2C) bus
 
+
+
 use crate::{
     gpio::*,
-    hal::blocking::i2c::{Read, Write, WriteRead},
+    hal::i2c::{Operation, ErrorType, ErrorKind},
     sysctl::{self, Clocks},
     time::Hertz,
     Sealed,
@@ -11,7 +13,7 @@ use crate::{
 use cortex_m::asm::delay;
 use tm4c129x::{I2C0, I2C1, I2C2, I2C3};
 
-pub use tm4c_hal::i2c::Error;
+
 pub use tm4c_hal::{i2c_busy_wait, i2c_hal, i2c_pins};
 
 /// I2C peripheral operating in master mode

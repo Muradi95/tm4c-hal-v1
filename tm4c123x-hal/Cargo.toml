@@ -21,9 +21,17 @@ default-features = false
 [dependencies.cortex-m]
 version = "0.7"
 
-[dependencies.embedded-hal]
+[dependencies.eh0]
+package = "embedded-hal"
 version = "0.2.2"
 features = ["unproven"]
+
+[dependencies.eh1]
+package = "embedded-hal"
+version = "1.0.0"
+
+[dependencies.embedded-io]
+version = "0.6.1"
 
 [dependencies.nb]
 version = "1"

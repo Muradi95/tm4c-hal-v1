@@ -1,9 +1,8 @@
 //! Timers
 
 use crate::{
-    hal::timer::{CountDown, Periodic},
-    sysctl::{self, Clocks},
-};
+    eh0::timer::{CountDown, Periodic},
+    sysctl::{self, Clocks}};
 
 #[rustfmt::skip]
 use tm4c123x::{

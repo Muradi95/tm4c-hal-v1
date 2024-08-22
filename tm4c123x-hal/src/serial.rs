@@ -13,7 +13,7 @@ use crate::{
         gpioa, gpiob, gpioc, gpiod, gpioe, gpiof,
         AlternateFunction, OutputMode, AF1, AF2, AF8,
     },
-    hal::{prelude::*, serial},
+    eh0::{prelude::*, serial},
     sysctl,
     sysctl::Clocks,
     time::Bps,

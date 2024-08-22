@@ -1,3 +1,4 @@
+
 //! Serial code that is generic to both the TM4C123 and TM4C129, such as the pin traits.
 
 // The macro is required for the "sealed trait" pattern to work:

@@ -2,7 +2,7 @@
 
 use crate::{
     gpio::*,
-    hal::blocking::i2c::{Read, Write, WriteRead},
+    hal::i2c::{Operation, ErrorKind, ErrorType},
     sysctl::{self, Clocks},
     time::Hertz,
     Sealed,
@@ -11,7 +11,6 @@ use crate::{
 use cortex_m::asm::delay;
 use tm4c123x::{I2C0, I2C1, I2C2, I2C3};
 
-pub use tm4c_hal::i2c::Error;
 use tm4c_hal::{i2c_busy_wait, i2c_hal, i2c_pins};
 
 /// I2C peripheral operating in master mode

@@ -1,6 +1,11 @@
 //! PWM abstractions
 
-use crate::gpio::{gpiob, gpioc, gpiof, AlternateFunction, PushPull, AF7};
+use crate::{
+    eh0::Pwm,
+    hal::pwm::{SetDutyCycle, ErrorType, ErrorKind},
+    gpio::{gpiob, gpioc, gpiof, AlternateFunction, PushPull, AF7},
+};
+
 
 /// a timer
 pub struct Timer<T> {
@@ -118,7 +123,7 @@ macro_rules! impl_for_timer {
 macro_rules! pwm_half {
     ($StructName:ident, $timer:path, $en_bit:expr, $ilr:ident, $matchr:ident) => {
         /// One half of a PWM timer
-        impl embedded_hal::Pwm for $StructName<$timer> {
+        impl Pwm for $StructName<$timer> {
             type Channel = ();
             type Time = u32; // clock cycles, proper abstraction tbd
             type Duty = u32; // also clock cycles
@@ -153,6 +158,24 @@ macro_rules! pwm_half {
                 self.timer
                     .$matchr
                     .write(|w| unsafe { w.bits(self.get_period() - duty) });
+            }
+        }
+    
+        impl ErrorType for $StructName<$timer> {
+            type Error = ErrorKind;
+        }
+
+        impl SetDutyCycle for $StructName<$timer>{
+
+            fn max_duty_cycle(&self) -> u16{
+                self.get_period() as u16
+            }
+
+            fn set_duty_cycle(&mut self, duty: u16) -> Result<(), Self::Error>{
+                self.timer
+                    .$matchr
+                    .write(|w| unsafe { w.bits(self.get_period() - duty as u32) });
+                Ok(())
             }
         }
     };

@@ -19,9 +19,17 @@ documentation = "https://docs.rs/tm4c-hal"
 cortex-m = "0.7"
 nb = "1"
 
-[dependencies.embedded-hal]
+[dependencies.eh0]
+package = "embedded-hal"
 version = "0.2.2"
 features = ["unproven"]
+
+[dependencies.eh1]
+package = "embedded-hal"
+version = "1.0.0"
+
+
+
 
 [dependencies.cast]
 version = "0.2.2"

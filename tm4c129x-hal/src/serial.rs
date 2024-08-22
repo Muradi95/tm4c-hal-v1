@@ -7,7 +7,7 @@ use core::{fmt, marker::PhantomData};
 
 use crate::{
     gpio::*,
-    hal::{prelude::*, serial},
+    eh0::{prelude::*, serial},
     sysctl::{self, Clocks},
     time::Bps,
 };

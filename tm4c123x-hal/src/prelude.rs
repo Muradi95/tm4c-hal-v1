@@ -3,7 +3,8 @@
 #[rustfmt::skip]
 pub use crate::{
     gpio::GpioExt as _,
-    hal::prelude::*,
+    hal::digital::*,
+    hal::delay::DelayNs,
     sysctl::SysctlExt,
     time::U32Ext,
 };

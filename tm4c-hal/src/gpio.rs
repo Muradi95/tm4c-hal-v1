@@ -61,6 +61,7 @@ pub struct Tristate;
 impl IsUnlocked for Tristate {}
 
 /// Output mode (type state)
+#[derive(Debug)]
 pub struct Output<MODE>
 where
     MODE: OutputMode,
